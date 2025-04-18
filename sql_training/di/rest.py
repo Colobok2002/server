@@ -21,6 +21,7 @@ from sql_training import __appname__, __version__
 from sql_training.di.common import CommonDI
 from sql_training.rest.auth.auth_router import AuthRouter
 from sql_training.rest.common import RoutsCommon
+from sql_training.rest.sql_manager.sql_manager_router import SqlManagerRouter
 from sql_training.utils.db_helper import DBHelper
 
 __all__ = ("RestDI",)
@@ -121,10 +122,18 @@ class RestDI(containers.DeclarativeContainer):
         db_helper=db_helper,
     )
 
+    sql_manager_router = providers.Singleton(
+        SqlManagerRouter,
+        prefix="/sql-manager",
+        tags=["sql-manager"],
+        db_helper=db_helper,
+    )
+
     app = providers.Factory(
         init_rest_app,
         routers=[
             auth_router,
+            sql_manager_router,
         ],
         logger=common_di.logger,
         settings=common_di.settings,

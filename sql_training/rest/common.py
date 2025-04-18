@@ -21,8 +21,8 @@ class APIRouterExt(APIRouter):
 
     def add_api_route(self, *args: Any, **kwargs: Any) -> None:
         """Ext добавем параметр OPTIONS по умолчанию"""
-        if "methods" in kwargs and "OPTIONS" not in kwargs["methods"]:
-            kwargs["methods"].append("OPTIONS")
+        # if "methods" in kwargs and "OPTIONS" not in kwargs["methods"]:
+        #     kwargs["methods"].append("OPTIONS")
 
         super().add_api_route(*args, **kwargs)
 
