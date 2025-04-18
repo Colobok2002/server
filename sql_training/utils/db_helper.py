@@ -4,6 +4,9 @@
 .. moduleauthor:: ilya Barinov <i-barinov@it-serv.ru>
 """
 
+from sqlalchemy import text
+
+
 try:
     from collections.abc import Generator
     from contextlib import contextmanager
@@ -187,6 +190,7 @@ class DBHelper(DBHelperBase):
     def sessionmanager(
         self,
         session: Session | None = None,
+        username: str | None = None,
         **kwargs: Any,
     ) -> Generator[Session, Any, Any]:
         """
@@ -213,6 +217,8 @@ class DBHelper(DBHelperBase):
         session_ = self._session_factory(**kwargs)
 
         try:
+            if username:
+                session_.execute(text(f"SET ROLE {username}"))
             yield session_
             session_.commit()
         except SQLAlchemyError:
@@ -220,6 +226,8 @@ class DBHelper(DBHelperBase):
             raise
 
         finally:
+            if username:
+                session_.execute(text("RESET ROLE"))
             session_.close()
 
             self.login = None

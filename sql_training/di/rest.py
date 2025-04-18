@@ -14,15 +14,15 @@ from dependency_injector import containers, providers
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_offline import FastAPIOffline
-from pydantic_settings import BaseSettings
 from sqlalchemy import create_engine
 
-from sql_training import __appname__, __version__
+from sql_training import __version__
 from sql_training.di.common import CommonDI
 from sql_training.rest.auth.auth_router import AuthRouter
 from sql_training.rest.common import RoutsCommon
 from sql_training.rest.sql_manager.sql_manager_router import SqlManagerRouter
 from sql_training.utils.db_helper import DBHelper
+from sql_training.utils.waiting import async_waiting_required_services
 
 __all__ = ("RestDI",)
 
@@ -36,7 +36,7 @@ class CustomFastAPIType(FastAPI):
 def init_rest_app(
     routers: list[type[RoutsCommon]],
     logger: Logger,
-    settings: BaseSettings,
+    config: dict[str, Any],
 ) -> FastAPI:
     """
     Инициализация Rest интерфейса
@@ -46,10 +46,9 @@ def init_rest_app(
     """
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncGenerator[Any]:  # noqa: ARG001, RUF029
+    async def lifespan(app: FastAPI) -> AsyncGenerator[Any]:  # noqa: ARG001
         # Ожидание запуска сервисов от которых зависит приложение
-        logger.info("Приложение инициализировано", extra={"settings": settings.model_dump_json()})
-        # TODO: Доделать логику wsaiting_db
+        await async_waiting_required_services(config=config)
         yield
 
     app: CustomFastAPIType = cast(
@@ -89,6 +88,7 @@ def init_rest_app(
 
 def get_db_helper(
     url: str,
+    app_name: str,
     pool_size: int | None = None,
     max_overflow: int | None = None,
 ) -> DBHelper:
@@ -99,7 +99,9 @@ def get_db_helper(
         pool_pre_ping=True,
         pool_size=pool_size,
         max_overflow=max_overflow,
-        connect_args={"application_name": __appname__},
+        connect_args={
+            "application_name": app_name,
+        },
     )
 
     return DBHelper(engine=engine)
@@ -108,11 +110,16 @@ def get_db_helper(
 class RestDI(containers.DeclarativeContainer):
     """DI-контейнер с основными зависимостями"""
 
-    common_di = providers.Container(CommonDI)
+    config = providers.Configuration()
 
-    db_helper: DBHelper = providers.Resource(
-        get_db_helper,  # type: ignore
-        url=common_di.settings.provided().DB_URL,
+    common_di = providers.Container(CommonDI, config=config)
+
+    db_helper = providers.Resource(
+        get_db_helper,
+        url=config.db.url,
+        pool_size=config.db.pool_size,
+        max_overflow=config.db.max_overflow,
+        app_name=config.app_name,
     )
 
     auth_router = providers.Singleton(
@@ -131,10 +138,10 @@ class RestDI(containers.DeclarativeContainer):
 
     app = providers.Factory(
         init_rest_app,
+        config=config,
         routers=[
             auth_router,
             sql_manager_router,
         ],
         logger=common_di.logger,
-        settings=common_di.settings,
     )

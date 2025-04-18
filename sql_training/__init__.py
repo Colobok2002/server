@@ -5,5 +5,5 @@ __all__ = (
     "__version__",
 )
 
-__appname__ = "sql_training"
+__appname__ = "sql-training"
 __version__ = _version.get_versions()["version"]

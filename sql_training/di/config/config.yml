@@ -1,0 +1,10 @@
+---
+loglevel: INFO
+
+db:
+  url: postgresql://root:root@localhost:5444/sqlTraining
+  # host: localhost
+  # port: 5444
+  # user: root
+  # password: root
+  # database: sqlTraining
